@@ -57,7 +57,7 @@ Defined in :domain module as Kotlin data classes.
   \`\`\`kotlin  
   data class LearningItem(  
       val id: String,  
-      val text: String,  // Token/phrase  
+      val token: String,  // Token/phrase  
       val category: String? \= null,  
       val subcategory: String? \= null,  
       var usageCount: Int \= 0,  
@@ -120,8 +120,8 @@ JSON Mapping: Use Gson for serialization/deserialization, matching provided stru
 
 \#\#\# 4.3 Data Layer  
 \- \*\*LearningRepositoryImpl\*\*:  
-  \- Dependencies: Gson, Android Context (for assets/files).  
-  \- \`loadQueues(optionalPaths: Pair\<String?, String?\>)\`: If paths null, load from assets ("core\_blocks.json", "learned\_queue.json"); else from picked files. Parse to entities.  
+  \- Dependencies: Gson, Android Context (for resources/files).  
+  \- \`loadQueues(optionalPaths: Pair\<String?, String?\>)\`: If paths null, load from resources ("core\_blocks.json", "learned\_queue.json"); else from picked files. Parse to entities.  
   \- \`saveQueues(...)\`: Serialize to local files (e.g., app's internal storage); overwrite.  
   \- Cache: Hold queues in-memory; thread-safe with Mutex if needed.  
   \- Error: Return Result\<Queues\> with exceptions (e.g., FileNotFound → use defaults).

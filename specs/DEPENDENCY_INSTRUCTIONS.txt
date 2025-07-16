@@ -1,0 +1,164 @@
+# Cohesive Guide for Dependency Management in Android Gradle Projects (For LLM-Based Coding Agents)
+
+As an LLM-based coding agent, your primary goal is to generate reliable, build-ready code changes that minimize iterative debugging cycles—especially around dependencies. Dependency issues, like those encountered in the gson episode, often stem from introducing code that relies on external libraries without preemptively verifying or updating the project's build configuration. This leads to time-consuming build failures, such as "Unresolved reference" errors, followed by multiple correction attempts.
+
+To avoid this, internalize a proactive "mental" trigger that you reflect on *before* generating or suggesting any new code snippet. This trigger acts as a self-check mechanism, ensuring you anticipate dependency needs at the conceptual stage rather than reacting to build errors. By keeping this in your context for every code change, you can streamline the process: plan code + dependencies in one cohesive step.
+
+## The Core Mental Trigger
+
+**Trigger Statement:**  
+"Before writing or suggesting code for a task, ask: Am I about to reference classes, functions, or APIs that are *not* part of the core language/standard library (e.g., Kotlin/Java stdlib, Android SDK) or already-established project dependencies? If yes, and this involves non-trivial functionality (e.g., data serialization, networking, complex computations), it's likely a new library is required—unless an equivalent is already in use."
+
+This trigger fires during the *planning phase* of your response, not after code generation. It's inspired by the gson case, where JSON deserialization was needed for parsing files into objects, but Kotlin/Android lacks high-level native support for it. Recognizing this early would have prevented adding `import com.google.gson.Gson` without first updating `libs.versions.toml` and the module's `build.gradle.kts`.
+
+**Key Indicators to Watch For (Internalize These as Red Flags):**
+- **Task Involves Structured Data Handling:** E.g., parsing/serializing JSON, XML, CSV, or database records into custom objects. (Gson trigger: Converting JSON files to `LearningItem` objects—native `org.json` is too low-level and error-prone.)
+- **Non-Native System Interactions:** E.g., HTTP requests, file I/O beyond basics, image loading, date/time manipulations with timezones, or hardware access. If the core SDK doesn't provide an idiomatic, high-level API, flag it.
+- **Boilerplate Code Smell:** If the code you're about to generate feels repetitive or generic (e.g., manual string parsing for JSON), it's a sign a library (like Gson, Jackson, or Kotlinx Serialization) should handle it.
+- **Unfamiliar Imports in Mind:** Mentally simulate the imports you'd need (e.g., `com.google.gson.Gson`, `retrofit2.Retrofit`). If they're from an external package not yet in the project, trigger activates.
+- **Project Convention Mismatch:** Scan the existing codebase (e.g., `build.gradle.kts`, `libs.versions.toml`)—if similar tasks use a different library (or none), introducing a new one risks inconsistency.
+
+**Why This Trigger Matters for LLMs:**  
+In the gson episode, the agent added test code using Gson, hit build errors, then iteratively fixed `libs.versions.toml` syntax, plugin declarations, and duplicate files—taking ~4 build attempts. By reflecting on this trigger upfront, you can bundle code changes with dependency updates, reducing cycles to 1-2. Always assume the user wants zero-friction changes; anticipate that builds will fail without explicit dependency additions.
+
+## Actions to Take When the Trigger Fires
+
+Once the trigger activates, follow this structured action plan in your response. Do *not* generate isolated code snippets—always provide a holistic change set (code + build config updates) to ensure immediate build success.
+
+1. **Understand the "Why":** Before touching any build file, clearly articulate why a dependency or plugin is needed and which module(s) will use it.
+
+2. **Consult Official Docs FIRST:** For any new plugin or library, immediately consult its official documentation for the recommended Gradle setup. This is paramount.
+
+3. **Verify Existing Dependencies (Pre-Generation Check):**  
+   Mentally or simulate reviewing project files: Check `libs.versions.toml` for relevant entries (e.g., search for "gson" or "serialization"). Review module `build.gradle.kts` for similar dependencies.  
+   If an equivalent library exists (e.g., Kotlinx Serialization for JSON), prefer reusing it to avoid bloat. If not, proceed to add a new one.  
+   Generalize: For any project type (not just Gradle), check equivalent files like `pom.xml` (Maven), `package.json` (Node.js), or `Cargo.toml` (Rust).
+
+4. **Select the Appropriate Library:**  
+   Choose based on project ecosystem: For Android/Kotlin, prioritize lightweight, idiomatic options (e.g., Gson for simple JSON, Kotlinx Serialization for type-safe alternatives).  
+   Consider constraints: Test-only? Use `testImplementation`. Production? Use `implementation`. Avoid transitive conflicts by checking compatibility.  
+   In the gson case: Recognized need for JSON deserialization → Selected Gson as it matched the test intent, over existing Kotlinx options.
+
+5. **Bundle Dependency Updates with Code Changes:**  
+   Provide step-by-step instructions or diffs:  
+   - Update version catalogs (e.g., add to `[versions]` and `[libraries]` in `libs.versions.toml`).  
+   - Add to module dependencies (e.g., `testImplementation(libs.gson)` in `build.gradle.kts`).  
+   - Handle potential pitfalls proactively: Check for syntax errors, plugin conflicts, or exclusions (e.g., `packaging { excludes += "META-INF/INDEX.LIST" }`).  
+   Global vs. Module Scope:  
+   - `settings.gradle.kts` (`pluginManagement { plugins { ... } }`): Declare new Gradle plugins (like `kotlin-serialization`) with their id and version. This makes them discoverable across all subprojects.  
+   - Module `build.gradle.kts` (`plugins { ... }`): Apply declared plugins using only their id (e.g., `id("org.jetbrains.kotlin.plugin.serialization")`).  
+   - Module `build.gradle.kts` (`dependencies { ... }`): Add library dependencies (e.g., `implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:X.Y.Z")`). Dependencies should only be added to the module that directly uses them.  
+   Atomic & Coordinated Changes: Plan all necessary changes across `settings.gradle.kts` and relevant module `build.gradle.kts` files before executing any replace commands. Execute them as a single, logical unit of work.
+
+6. **Pre-Build Sanity Check:** Before running `./gradlew build` (or any gradlew command):  
+   - Mentally trace the flow: Is the plugin declared globally? Is it applied locally? Are the dependencies in the correct module?  
+   - Review the exact old_string and new_string for replace operations to ensure precision and avoid syntax errors.
+
+7. **Advise Immediate Verification:** "After these changes, run `./gradlew build` to confirm."
+
+8. **Analyze Failures Methodically:** If a build fails, read the error message carefully. Focus on the "What went wrong" and "Cause" sections. Use `--stacktrace` and `--info` for more detail. Isolate the problematic module/task if necessary.
+
+9. **Post-Action Reflection (For Your Internal Context):**  
+   After suggesting changes, note in your reasoning: "Trigger fired for [task, e.g., JSON parsing]. Added [library] proactively to avoid unresolved references."  
+   If build issues persist in future interactions, reference this episode: "Recalling gson pitfalls—ensuring no duplicate sections in TOML."
+
+## Broader Guidance: Best Practices for Structuring Dependencies in Android Applications
+
+Structuring dependencies effectively in an Android app improves build performance, reduces conflicts, and makes maintenance easier—especially in multi-module projects. Android recommends using Gradle with Kotlin DSL (`build.gradle.kts`) for all build scripts, as it's more type-safe and IDE-friendly than Groovy. Here's a step-by-step guide based on official Android guidelines and Gradle best practices:
+
+1. **Adopt a Modular Project Structure**  
+   Break your app into modules (e.g., `:app`, `:core`, `:data`, `:ui`) to enable parallel builds, reuse code, and isolate features. This reduces build times by allowing Gradle to cache and reuse artifacts.  
+   Use a root project for shared configurations, and include modules via `settings.gradle.kts`:  
+   ```kotlin  
+   include(":app", ":core", ":data")  
+   ```  
+   Benefits: Faster incremental builds, easier testing, and better scalability for teams.
+
+2. **Centralize Dependency Versions with Version Catalogs**  
+   Version catalogs (introduced in Gradle 7.0 and default in new Android projects) are the recommended way to manage versions for dependencies, plugins, and libraries. They prevent version mismatches and make updates straightforward.  
+   Create or edit `gradle/libs.versions.toml` in your root project:  
+   ```toml  
+   [versions]  
+   agp = "8.1.0"  # Android Gradle Plugin  
+   kotlin = "1.9.0"  
+   serialization = "1.6.3"  # For kotlinx-serialization-json  
+
+   [libraries]  
+   kotlin-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }  
+
+   [plugins]  
+   android-application = { id = "com.android.application", version.ref = "agp" }  
+   kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }  
+   kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }  
+   ```  
+   Reference them in build scripts:  
+   ```kotlin  
+   // In root build.gradle.kts  
+   plugins {  
+       alias(libs.plugins.android.application) apply false  
+       alias(libs.plugins.kotlin.android) apply false  
+       alias(libs.plugins.kotlin.serialization) apply false  
+   }  
+
+   // In module build.gradle.kts  
+   plugins {  
+       alias(libs.plugins.android.application)  
+       alias(libs.plugins.kotlin.serialization)  
+   }  
+
+   dependencies {  
+       implementation(libs.kotlin.serialization.json)  
+   }  
+   ```  
+   For library groups (e.g., AndroidX), use Bills of Materials (BOMs) in the catalog to import multiple versions at once:  
+   ```toml  
+   [libraries]  
+   androidx-core-bom = { group = "androidx.core", name = "core-bom", version = "1.13.1" }  
+   ```  
+   Then: `implementation(platform(libs.androidx.core.bom))`.  
+   Migrate existing projects: Gradually move hardcoded versions to the catalog for consistency.
+
+3. **Declare and Apply Plugins Correctly**  
+   Root Level: Declare all plugins with versions and `apply false` to share across modules.  
+   Module Level: Apply plugins without versions.  
+   Use aliases from version catalogs for plugins (as shown above) to avoid duplication.  
+   Common plugins for Android/Kotlin apps: `com.android.application`, `org.jetbrains.kotlin.android`, `org.jetbrains.kotlin.plugin.serialization`, `com.google.dagger.hilt.android`.  
+   Avoid applying unnecessary plugins (e.g., don't apply `org.jetbrains.kotlin.jvm` unless targeting JVM specifically—use `org.jetbrains.kotlin.android` for Android).
+
+4. **Choose the Right Dependency Configurations**  
+   Use the appropriate scope to optimize build speed and avoid exposing unnecessary APIs. Here's a table of key configurations:
+
+| Configuration          | Use Case                                                                 | Example                                      | Best Practice                                                                 |
+|------------------------|--------------------------------------------------------------------------|----------------------------------------------|-------------------------------------------------------------------------------|
+| implementation        | Most dependencies; adds to compile classpath and output without transitivity. | implementation("androidx.core:core-ktx:1.13.1") | Prefer this for better build performance; avoids recompiling dependents.     |
+| api                   | Libraries that need to be exposed to consumers (e.g., in a library module). | api("com.squareup.retrofit2:retrofit:2.9.0") | Use sparingly; increases build times due to transitivity.                    |
+| compileOnly           | Compile-time only (e.g., annotations); not included in APK.             | compileOnly("com.google.dagger:dagger-compiler:2.48") | Ideal for processors; don't use for AARs.                                    |
+| runtimeOnly           | Runtime only; rare in Android.                                          | runtimeOnly("some-runtime-lib")             | Use for dynamic loading scenarios.                                           |
+| ksp / kapt            | Kotlin annotation processing (e.g., Room, Hilt).                       | ksp("androidx.room:room-compiler:2.6.1")   | Prefer ksp for faster Kotlin-specific processing.                            |
+| testImplementation    | Unit tests.                                                             | testImplementation("junit:junit:4.13.2")    | Keep test deps separate.                                                     |
+| androidTestImplementation | Instrumented tests.                                                     | androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1") | For on-device testing.                                                       |
+
+   For build variants (e.g., flavors like "free" vs "paid"), prefix configurations: `freeImplementation("some-lib")`.  
+   Order dependencies logically in the `dependencies` block: Local modules first, then core libs, third-party, tests last.
+
+5. **Handle Conflicts and Optimization**  
+   Run `./gradlew dependencies` or `./gradlew dependencyInsight --dependency <name>` to inspect and resolve conflicts.  
+   Use `dependencyResolutionManagement` in `settings.gradle.kts` for strict version enforcement:  
+   ```kotlin  
+   dependencyResolutionManagement {  
+       repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)  
+       repositories {  
+           google()  
+           mavenCentral()  
+       }  
+   }  
+   ```  
+   Exclude transitive dependencies if needed: `implementation("some-lib") { exclude(group = "unwanted-group") }`.  
+   Minimize dependencies: Regularly audit with `./gradlew dependencyUpdates` and remove unused ones.
+
+6. **Additional Tips for Teams**  
+   - **Version Control:** Commit `libs.versions.toml` and build scripts; use semantic versioning for custom modules.  
+   - **Build Performance:** Enable Gradle daemon, parallel execution (`org.gradle.parallel=true` in `gradle.properties`), and configuration caching (`org.gradle.configuration-cache=true`).  
+   - **Upgrades:** Keep AGP, Kotlin, and Gradle updated (e.g., Kotlin 2.0+ for better features). Test in a branch.  
+   - **Multi-Module Best Practices:** Create convention plugins in `buildSrc` or a separate module for shared configs (e.g., a `kotlin-multiplatform-conventions` plugin).  
+   - **Tools:** Use Android Studio's Dependency Analyzer (Build > Analyze Dependencies) for visualizations.
