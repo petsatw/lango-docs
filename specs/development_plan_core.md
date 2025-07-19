@@ -20,16 +20,16 @@ As you progress through development, update the status of each task directly wit
 | | `LearningItem` unit tests written & passing | ✓ |
 | | Other entity/model unit tests (`Queues`, param helpers) | ✓ |
 | | Repository unit tests | ✓ |
-| | Use-case unit tests (StartSession, ProcessTurn, GenerateDialogue, EndSession) | ✗ |
+| | Use-case unit tests (StartSession, ProcessTurn, GenerateDialogue, EndSession) | ✓ |
 | | ViewModel unit tests (state transitions, error handling) | ✓ |
-| **1 Core Pipeline** | Stage 0 — Project bootstrap (modules, deps, sample JSON, CI) | ✗ |
-| | Stage 1 — Unit Test 1 (File Read) | ✗ |
-| | Stage 2 — Unit Test 2 (API Send) | ✗ |
-| | Stage 3 — Unit Test 3 (API Receive) | ✗ |
-| | Stage 4 — Unit Test 4 (Audio Play) | ✗ |
-| | Stage 5 — End-to-End Core Sequence Integration test | ✗ |
+| **1 Core Pipeline** | Stage 0 — Project bootstrap (modules, deps, sample JSON, CI) | ✓ |
+| | Stage 1 — Unit Test 1 (File Read) | ✓ |
+| | Stage 2 — Unit Test 2 (API Send) | ✓ |
+| | Stage 3 — Unit Test 3 (API Receive) | ✓ |
+| | Stage 4 — Unit Test 4 (Audio Play) | ✓ |
+| | Stage 5 — End-to-End Core Sequence Integration test | ✓ |
 | **2 Session Loop & Mastery** | Implement session turn loop, mastery promotion, bias logic | ✗ |
-| | Extend unit tests & new integration test suite | ✗ |
+| | Extend unit tests & new integration test suite | ✓ |
 | **3 UX Hardening** | Minimal UI polish, interruption handling, error localisation | ✗ |
 | **4 Readiness** | Full regression, 80 %+ coverage, release build config | ✗ |
 
