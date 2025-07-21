@@ -1,0 +1,33 @@
+# Pre-build Check
+
+## Definitions used in this Pre-build Check
+
+CURRENT_CODE: <where to find the repository or file where the code lives>
+FR: <feature request document or details>
+
+FR_CONTEXT: <details or documentation that are essential for implementation of FR, if none provided perform your own evaluation>
+AFFECTED_MODULES: <the specific modules, packages or classes impacted, if none specified here, perform your own evaluation>
+NEW_CONSIDERATION: <new library or approach, if none specified here, perform your own evaluation>
+KEY_CHANGE_1: <potentially interdependent change, if none specified here, perform your own evaluation to determine this>
+KEY_CHANGE_2: <potentially dependent change, if none specified here, perform your own evaluation to determine this>
+
+## TASK
+1) Carefully examine CURRENT_CODE to understand the current code state and exact implementation context of the current build. Do not bypass, rush, or make assumptions for this step. Read the code fully to understand the current state. This is your source of truth. 
+2) Then read the FR, if it is a file, and the FR_CONTEXT, if provided. 
+3) Assess the current build CURRENT_CODE and review the FR_CONTEXT to determine readiness to begin development for this FR. If there is any pre-work to set the stage for FR what would your approach be? Please take a careful look at existing dependencies, evaluate changes and their impact and the chain of impacts that library changes, name changes, new classes and file movements might have. 
+4) Wherever there is still work to be done, provide highly detailed instructions to resolve the issue with specific references to where in the codebase these changes need to take place and the what needs to change to align with your target future state (codebase ready to begin working on FR)
+5) After you have finished detailing code changes required, make sure to add a section for any documentation updates that are needed to align with the target future state (codebase ready to begin working on FR)
+
+### Fundamental Gaps: 
+If there is currently no NEW_CONSIDERATION in this build, are there any fundamentals that are assumed available for FR development but are not actually present? What is the work required to establish these fundamentals in order for FR development to begin? 
+
+### Order of Execution
+Should KEY_CHANGE_1 be in place and operational prior to KEY_CHANGE_2 or the other way around? Think carefully about the optimal order of operations so that each change builds off of the previous one with minimal conflicts or ambiguity
+
+### Library Dependencies
+Please be VERY careful with the dependencies.  
+
+Review the changes requested and catalog every new impact to existing libraries, compare that with the current code in CURRENT_CODE, especially the .toml file and build.gradle files in AFFECTED_MODULES. Follow the conventions in these files. Identify any libraries or versions specified in FR or FR_CONTEXT that conflict with or downgrade the current dependencies. If there is a risk, add a DEPENDENCY RISK section to your response at the end so I can be aware that there is a potential dependency issue that may need to be resolved. 
+
+### Build Points
+Organize all of these changes and spell them out in detailed instructions. Also add explicit build points at the key moments where there is high uncertainty, any dependency changes, significant refactors or new classes.

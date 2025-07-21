@@ -27,7 +27,7 @@ Success Criteria: Functional turns, accurate mastery transitions, verifiable log
 
 \#\#\# Assumptions and Constraints  
 \- Android API level: 26+ (Oreo) for modern features like Coroutines.  
-\- Libraries: Kotlin, Jetpack (ViewModel, Flows), Hilt DI, Gson for JSON, OpenAI SDK.  
+\- Libraries: Kotlin, Jetpack (ViewModel, Flows), Hilt DI, Kotlinx-Serialization-Json for JSON, OpenAI SDK.  
 \- No offline mode; handle errors gracefully.  
 \- Audio: Microphone permission required; no pronunciation feedback.
 
@@ -58,8 +58,6 @@ Defined in :domain module as Kotlin data classes.
   data class LearningItem(  
       val id: String,  
       val token: String,  // Token/phrase  
-      val category: String? \= null,  
-      val subcategory: String? \= null,  
       var usageCount: Int \= 0,  
       var presentationCount: Int \= 0,  
       var isLearned: Boolean \= false  
@@ -67,10 +65,11 @@ Defined in :domain module as Kotlin data classes.
   \`\`\`
 
 \- \*\*Queues\*\*:  
-  \- \`newQueue: MutableList\<LearningItem\>\` – From core\_blocks.json; FIFO dequeue.  
+  \- \`newQueue: MutableList\<LearningItem\>\` – From new\_queue.json; FIFO dequeue.  
   \- \`learnedPool: MutableList\<LearningItem\>\` – From learned\_queue.json; bias selection by min(usageCount \+ presentationCount).
 
-JSON Mapping: Use Gson for serialization/deserialization, matching provided structures (e.g., "token" → text).
+JSON Mapping: Use Kotlinx-Serialization-Json for serialization/deserialization, matching provided structures (e.g., "token" → text).
+JSON property names use **snake_case** \(e.g., \"presentation_count\"\) and are mapped via \`@SerialName\`.
 
 \#\# 4\. Detailed Components
 
@@ -120,7 +119,7 @@ JSON Mapping: Use Gson for serialization/deserialization, matching provided stru
 
 \#\#\# 4.3 Data Layer  
 \- \*\*LearningRepositoryImpl\*\*:  
-  \- Dependencies: Gson, Android Context (for resources/files).  
+  \- Dependencies: Kotlinx-Serialization-Json, Android Context (for resources/files).  
   \- \`loadQueues(optionalPaths: Pair\<String?, String?\>)\`: If paths null, load from resources ("core\_blocks.json", "learned\_queue.json"); else from picked files. Parse to entities.  
   \- \`saveQueues(...)\`: Serialize to local files (e.g., app's internal storage); overwrite.  
   \- Cache: Hold queues in-memory; thread-safe with Mutex if needed.  
@@ -160,10 +159,13 @@ Align with TDD:
 \- \*\*Libraries\*\*:  
   \- AndroidX: Core, AppCompat, Material.  
   \- Jetpack: Hilt, ViewModel, Coroutines, Flows.  
-  \- JSON: Gson.  
+  \- JSON: Kotlinx-Serialization-Json.
   \- OpenAI: Official SDK or Retrofit \+ OkHttp.  
   \- Audio: MediaRecorder, MediaPlayer.  
 \- \*\*Build Config\*\*: Multi-module Gradle; minSdk=26, targetSdk=35.  
 \- \*\*Security\*\*: API keys encrypted in build; no sensitive data stored.
+
+### Java NIO File Moves
+The code relies on `java.nio.file.Files.move(..., ATOMIC_MOVE)`. On Android (API 26+) this is atomic; other environments (Robolectric, some emulators) may not support `ATOMIC_MOVE`, so a non‑atomic fallback is used.
 
 This spec provides a blueprint for implementation. For code generation or refinements, provide additional details.

@@ -13,7 +13,7 @@ The app must instead copy bundled JSON into private storage, parse it into memor
 
 ### Scope  
 * **First-run bootstrap** – copy `assets/queues/new_queue.json` and `assets/queues/learned_queue.json` to **`context.filesDir`** the very first time the app runs.  
-* **Parsing** – read both files into in-memory `Queue<LearningItem>` objects using Gson / Kotlinx with camel-case fields.  
+* **Parsing** – read both files into in-memory `Queue<LearningItem>` objects using Kotlinx-Serialization (Json) with camel-case fields.  
 * **Save & mutex** – `saveQueues()` serialises queues to a temp file, then atomically renames; guarded by a `Mutex` shared with `loadQueues()`.  
 * **Robustness** – if a file is missing or JSON is malformed, return `Result.failure` and fall back to asset defaults.
 
@@ -23,15 +23,15 @@ The app must instead copy bundled JSON into private storage, parse it into memor
 
 ---
 
-### Acceptance Criteria  
+### Acceptance Criteria
 
 | Given | When | Then |
 |-------|------|------|
-| Fresh install (no queue files) | `LearningRepository.loadQueues()` is called | Files `new_queue.json` & `learned_queue.json` now exist in `filesDir`, and the returned `Result` is **success** with queues equal to bundled JSON. |
-| Queues are modified in memory | `saveQueues()` is invoked | JSON on disk reflects the modified counts; call returns success. |
-| Another thread simultaneously calls `loadQueues()` | Both operations complete | No data races or exceptions occur. |
-| A corrupted JSON file exists | `loadQueues()` is called | `Result.failure(JsonSyntaxException)` is returned **and** queues fall back to asset defaults. |
-| Path points to a non‑existent directory | `loadQueues()` is called | Operation succeeds by copying assets into that directory. |
+| Fresh install (no queue files) | `LearningRepository.loadQueues()` is called | Files **`new_queue.json`** and **`learned_queue.json`** are created in `filesDir`, and the call returns **`Result.success(Queues)`** whose contents match the bundled JSON. |
+| Queues are modified in memory | `saveQueues()` is invoked | The queues are written to disk (atomic write), and the call returns **`Result.success(Unit)`**. |
+| Another thread simultaneously calls `loadQueues()` | Both operations complete | No data races or exceptions occur; each call’s **`Result`** reflects the correct state. |
+| A corrupted JSON file exists on disk | `loadQueues()` is called | The method returns **`Result.failure(SerializationException)`** and automatically restores queues from the bundled asset defaults. |
+| The target directory does not yet exist | `loadQueues()` is called | Assets are copied into the new directory and the call returns **`Result.success(Queues)`**. |
 
 ---
 
@@ -48,14 +48,15 @@ The app must instead copy bundled JSON into private storage, parse it into memor
 [
   {
     "id": "CP017",
-    "phrase": "Wie viel kostet das?",
-    "presentationCount": 0,
-    "usageCount": 0
+    "token": "Wie viel kostet das?",
+    "presentation_count": 0,
+    "usage_count": 0,
+	"is_learned": "false"
   }
   // …
 ]
 ```
-* File names use **snake_case**; JSON property names are **camelCase** to match the Kotlin data class.
+* File names use **snake_case**; JSON property names are **snake_case** and are mapped via `@SerialName`
 
 ---
 

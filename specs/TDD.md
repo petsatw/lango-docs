@@ -132,6 +132,16 @@ This section prioritizes the foundational pipeline for iterative development and
   Given received text from API, when TTS API is called (mocked audio output), then audio is generated and played (simulate play with a callback or log). Display text on screen simultaneously.    
   \- Expected: TTS call uses correct text and German accent config; play succeeds; screen text updates.
 
+### File I/O Tests (FS‑1 to FS‑5)
+
+| Test ID | Level         | Scenario & Steps           | Expected Assertions                                                 | Status                              |
+|---------|---------------|----------------------------|---------------------------------------------------------------------|-------------------------------------|
+| FS‑1    | Instrumented  | Cold‑start load            | Result.success; queues created; contents match assets               | ✅ Active                           |
+| FS‑2    | Instrumented  | Persist & reload           | Modified count persists after reload                                | ⚠️ Skipped (Robolectric/Windows)    |
+| FS‑3    | JVM           | Concurrent read/write      | No races or errors when load + save run simultaneously              | ⚠️ Skipped (Robolectric/Windows)    |
+| FS‑4    | JVM           | Malformed JSON             | Result.failure; fallback to bundled defaults                        | ✅ Active                           |
+| FS‑5    | JVM           | Missing file               | Result.success; assets copied; queues created                       | ✅ Active                           |
+
 \#\#\# End-to-End Integration Test  
 \- \*\*Integration Test: Full Core Sequence\*\*    
   Given app launch with predefined JSON files, when a "Test Core Flow" button or command is triggered (temporary for development), then: read files into memory → construct and send test instruction to ChatGPT API (real call) → receive response text → send to TTS API (real call) → play audio and display text.    

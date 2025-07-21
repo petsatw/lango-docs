@@ -46,7 +46,7 @@ Modules can be Android modules (e.g., \`:data\`, \`:speech\`, \`:domain\`, \`:ap
     \- Methods: \`loadQueues(filePaths: Pair\<String?, String?\>)\`: Loads from predefined assets or picked files; parses JSON into entities. Handles errors (e.g., invalid JSON → empty lists \+ error state).  
     \- \`saveQueues(newQueue: List\<LearningItem\>, learnedPool: List\<LearningItem\>)\`: Writes to local JSON files at session end/close.  
     \- \`getCurrentState()\`: Returns in-memory queues (cached after load).  
-    \- Implementation: Use Gson/Jackson for JSON parsing. Predefined files in \`/assets\`. File picker via Android's \`ActivityResultLauncher\`.  
+    \- Implementation: Use Kotlinx-Serialization-Json for JSON parsing. Predefined files in \`/assets\`. File picker via Android's \`ActivityResultLauncher\`.  
   \- Testable: Mock file I/O for unit tests (e.g., Unit Test 1 in TDD).
 
 \- \*\*Use Cases (Domain Layer)\*\*:  
@@ -97,6 +97,33 @@ Modules can be Android modules (e.g., \`:data\`, \`:speech\`, \`:domain\`, \`:ap
 
 Async handling: Use Coroutines in ViewModel (e.g., viewModelScope.launch { ... }).
 
+
+#### Data Layer / File I/O Strategy
+
++ ### Atomic Write & Robolectric Fallback
++ To ensure robust file persistence, `LearningRepositoryImpl.saveQueues()` uses an `atomicWrite` helper:
++ 
++ ```kotlin
++ try {
++     Files.move(
++         tempFile.toPath(),
++         targetFile.toPath(),
++         StandardCopyOption.ATOMIC_MOVE,
++         StandardCopyOption.REPLACE_EXISTING
++     )
++ } catch (e: AtomicMoveNotSupportedException) {
++     // Fallback for Robolectric & non-atomic filesystems
++     Files.move(
++         tempFile.toPath(),
++         targetFile.toPath(),
++         StandardCopyOption.REPLACE_EXISTING
++     )
++ }
++ ```
++ 
++ **Note:** Robolectric’s in‑memory FS (especially on Windows) may still throw `AccessDeniedException`. Tests FS‑2/FS‑3 are disabled in that environment; see TDD.md for details.
+
+
 \#\#\#\# 4\. How This Supports TDD  
 \- \*\*Unit Tests\*\*: Isolate layers.  
   \- Data: Mock file system, test parsing (TDD Unit Test 1).  
@@ -112,6 +139,6 @@ Async handling: Use Coroutines in ViewModel (e.g., viewModelScope.launch { ... }
 \- \*\*Pros\*\*: Clean, testable, aligns with Android (MVVM is Jetpack-recommended). Handles PROMPT's real-time tracking in-memory.  
 \- \*\*Cons\*\*: Slight overhead for small MVP, but pays off for extensibility (e.g., add languages by swapping JSON/prompts).  
 \- \*\*Extensions\*\*: Future phases can add cloud repositories, multi-language configs, or replace OpenAI with local models.  
-\- \*\*Tools/Libs\*\*: Android Studio, Kotlin, Hilt, Coroutines, Gson, OpenAI SDK, MediaRecorder/MediaPlayer.
+\- \*\*Tools/Libs\*\*: Android Studio, Kotlin, Hilt, Coroutines, Kotlinx-Serialization-Json, OpenAI SDK, MediaRecorder/MediaPlayer.
 
 This architecture ensures the app is buildable iteratively, starting with the core sequence test in the TDD. If you need code snippets, diagrams, or refinements, let me know\!
