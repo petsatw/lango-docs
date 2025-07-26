@@ -1,148 +1,158 @@
-\# Technical Design Document (TDD) for Lango App Phase Zero MVP
+# Technical Design & Test Plan (TDD) – Lango MVP
 
-\#\# Version 1.0  
-\*\*Date:\*\* July 15, 2025    
-\*\*Author:\*\* Grok (based on interview responses)    
-\*\*Purpose:\*\* This document serves as the fundamental building block for the Lango app's phase zero MVP. It defines the core requirements, behaviors, and test cases to ensure clarity for development. The focus is on Test-Driven Development (TDD) principles, where test cases accurately represent the desired functionality for personal use as the first user. This MVP emphasizes a minimal voice-based coaching session for learning German as a beginner, with extensibility in mind for other languages. All requirements are derived from the provided PDF logic (e.g., core\_blocks.json for new objectives, learned\_queue.json for progress tracking with usage\_count and presentation\_count) and interview details.
 
-The app is an Android application requiring internet for OpenAI APIs (ChatGPT for dialogue generation, Whisper for STT, TTS for coach voice). It uses modular design: a data access module for JSON handling (agnostic to source/format) and a speech module for STT/TTS (using OpenAI initially).
+## 1 Architecture in One Minute
+*MVVM + Clean* split into 5 Gradle modules:
 
-Phase zero is strictly for personal testing: single-user, local storage, no advanced features like user profiles, dashboards, reminders, or monetization. Success is measured by functional turns in sessions, correct mastery transitions, and accurate count tracking, verified via conversation logs.
+| Layer (module) | Key runtime classes | Test entry points |
+| --- | --- | --- |
+| **Data (:data)** | `LearningRepositoryImpl` | FS‑* |
+| **Domain (:domain)** | *Use‑cases* `StartSessionUseCase`, `ProcessTurnUseCase`, `GenerateDialogueUseCase`, etc. | B‑*, PS‑* |
+| **Speech (:speech)** | `LlmServiceImpl`, `TtsServiceImpl`, `SttServiceImpl` | C‑* |
+| **Presentation (:app)** | `MainViewModel` | VM‑* |
+| **UI (:app)** | `MainActivity` & Espresso hooks | UI‑* |
+| **Cross‑module** | Hilt DI bindings | DI‑* |
+| **E2E** | full stack (fakes vs live) | INT‑* |
 
-\#\# 1\. Overall Product Vision and Scope  
-\#\#\# Requirements  
-\- Target audience: Beginners learning German, no location restrictions.  
-\- Language support: German only for MVP, but architecture must be extensible (e.g., configurable language codes, separate JSON per language).  
-\- Features: Core voice coaching via dialogues prompting use of new targets; track usage\_count (times user correctly uses item) and presentation\_count (times item is presented by coach) separately for learned items; bias dialogues toward less-used learned items (e.g., weight selection by lower counts).  
-\- No multi-user or cloud sync; local only.  
-\- Key metrics: Number of completed turns, successful mastery (usage\_count \>=3), correct count increments; log coach/user text for verification.
+All tests are **white‑box** within their layer unless tagged `INT‑*`.
 
-\#\#\# Test Cases  
-\- \*\*Test Vision Extensibility:\*\* Given app config for German, when loading JSON for another language (simulated), then core logic processes without hard-coded German assumptions.  
-  \- Expected: No errors; dialogues generate in the new language if TTS/STT supports it.  
-\- \*\*Test Metrics Logging:\*\* Given a session with 5 turns, when session ends, then log file contains text of all coach prompts and user responses, with final usage/presentation counts.  
-  \- Expected: Log matches expected increments (e.g., presentation \+1 per coach use, usage \+1 per detected user use).
+---
 
-\#\# 2\. User Interface and Experience (UX/UI)  
-\#\#\# Requirements  
-\- Minimal UI: Home screen with "Resume Session" button (changes to "End Session" on click); separate "Speak" button for user input; menu with "Load New Session" to prompt file pickers for core\_blocks.json (new\_queue) and learned\_queue.json (learned\_pool with counts).  
-\- Visual feedback: Indicator (e.g., icon/dial) for listening mode (user speaking); waiting indicator for coach response (due to API delay); display coach's spoken text on screen.  
-\- Session handling: Tap buttons only (no voice commands); session ends on button tap or phone call interruption (no pause/resume for other events like backgrounding).  
-\- Onboarding: Request microphone permissions on first launch; start with predefined bundled JSON files (in app assets) presenting the "Resume Session" screen; no intro screens, assume user knows to use menu for loading new files (overwrites existing).  
-\- Accessibility: None specified for phase zero; focus on core voice/text.  
-\- Error display: If internet error or recognition fail, show error message on screen (e.g., "Connection issue" or "Didn't hear—repeat").
+## 2 Taxonomy & Naming Convention  *(unchanged)*
 
-\#\#\# Test Cases  
-\- \*\*Test UI Simplicity:\*\* Given app launch, when permissions granted, then screen shows "Resume Session", "Speak" button, and menu; no other elements.  
-  \- Expected: Buttons function as taps; menu opens file pickers for two JSON files.  
-\- \*\*Test Visual Feedback:\*\* Given a turn start, when coach speaks, then text appears on screen and audio plays; during user input, listening indicator shows; during API wait, waiting dial animates.  
-  \- Expected: Indicators toggle correctly; text matches TTS output.  
-\- \*\*Test Onboarding:\*\* Given first launch without permissions, when app starts, then microphone permission dialog appears; on grant, loads predefined JSON and shows main screen.  
-  \- Expected: Session resumable with bundled data; no additional setups.  
-\- \*\*Test Interruption Handling:\*\* Given active session, when simulated phone call, then session ends and data writes to local JSON.  
-  \- Expected: No resume; next launch loads from saved state.  
-\- \*\*Test Error Display:\*\* Given no internet during turn, then screen shows "Ich habe das nicht verstanden – bitte wiederholen" in German) and "I didn't hear that—please repeat" in English; session continues if retried.  
-  \- Expected: Message uses bilingual format; logs the error.
+| Tag | Module | Purpose | Gradle Task |
+| --- | --- | --- | --- |
+| **FS‑n** | :data | File‑system bootstrap & persistence | `:data:test` |
+| **B‑n** | :domain | Pure business rules | `:domain:test` |
+| **PS‑n** | :domain | Prompt snapshot / golden files | `:domain:test` |
+| **C‑n** | :speech | Offline speech fakes | `:speech:test` |
+| **DI‑n** | :app (+`di-test`) | DI binding switches | `connectedAndroidTest` |
+| **VM‑n** | :app | View‑model state machine | `:app:test` |
+| **UI‑n** | :app | Espresso / Robolectric UI flows | `connectedAndroidTest` |
+| **INT‑n** | :app | End‑to‑end with fakes or live | `connectedAndroidTest` |
 
-\#\# 3\. Core Functionality and Logic  
-\#\#\# Requirements  
-\- Session Structure: A session is the full conversation; turns are individual exchanges (coach prompts 1-3 sentences in simple German, user responds using new\_target).  
-\- Dialogue Generation: Prompt LLM with new\_target, learned\_pool (incl. counts), instructions to use only allowed vocab, create natural dialogues prompting new\_target use, bias to low-count items, explain new\_target simply (like for a 5-year-old) on introduction with example sentence.  
-\- Mastery: Dequeue new\_target to learned\_pool when usage\_count \>=3 (detected via STT matching in user response); transition immediately in same session—next turn introduces new target (say in German, explain briefly in German then English, example in German).  
-\- Parametric Phrases: Coach uses natural examples with learned\_pool fillers; no validation, user completes as best they can.  
-\- Recognition: Rely on OpenAI STT; no pronunciation feedback; if failure, recover with bilingual prompt to repeat; no accuracy thresholds beyond API confidence.  
-\- Tracking: In-memory during session; increment presentation\_count when coach presents item, usage\_count when user uses it correctly (per STT match); write to JSON at session end or app close.  
-\- Edge Cases: If new\_queue empty, show "Congratulations\! You've completed your learning objectives." screen.
+File naming: `<Tag><number>_<behaviour>.kt` (e.g., `FS1_ColdStartCopyTest.kt`).
 
-\#\#\# Test Cases  
-\- \*\*Test Session Flow:\*\* Given new\_queue with 2 targets, learned\_pool empty, when session starts and user completes 3 uses for first target, then next turn seamlessly introduces second target with explanation (German \+ English).  
-  \- Expected: Usage\_count \==3 triggers move; logs show bilingual intro only for new target.  
-\- \*\*Test Turn Completion:\*\* Given coach prompt, when user speaks and STT succeeds, then counts increment if match; coach generates next prompt via API.  
-  \- Expected: Turn ends on response; API call includes updated pool/counts for bias.  
-\- \*\*Test Mastery Transition:\*\* Given usage\_count=2 for target, when third correct use detected, then target moves to learned\_pool; presentation/usage tracking continues.  
-  \- Expected: No interruption; next dialogue biases to the new learned item if low counts.  
-\- \*\*Test Parametric Handling:\*\* Given parametric new\_target like "Ich heiße \_\_", when coach prompts, then uses learned filler (e.g., name from pool); user response accepted without validation.  
-  \- Expected: STT text matches for usage increment if contains target structure.  
-\- \*\*Test Recognition Error:\*\* Given poor STT, when failure, then bilingual repeat prompt; session continues.  
-  \- Expected: No count increments; log shows error prompt.  
-\- \*\*Test Empty Queue:\*\* Given last target mastered, when queue empty, then session ends with congrats screen.  
-  \- Expected: No further turns; data saved.
+---
 
-\#\# 4\. Technical Integrations and Requirements  
-\#\#\# Requirements  
-\- STT: OpenAI Whisper API; send audio, get text; handle German beginner accents leniently via API.  
-\- TTS: OpenAI TTS API; casual German accent (Linz if possible, else standard); display text alongside audio.  
-\- Connectivity: Requires internet; error message if disconnected during session.  
-\- Persistence: Local JSON via data module; read on load, write on end/close; predefined assets for initial.  
-\- Android: No min API specified; require microphone; no other constraints.  
-\- Security/Privacy: None for phase zero; transient audio processing only.
+## 3 Detailed Test Specifications   
+*Each block follows the canonical FS table (Scenario / Pre‑Conditions / Steps / Expected / Implementation / Dependencies).*  
 
-\#\#\# Test Cases  
-\- \*\*Test API Integration:\*\* Given user audio, when sent to STT, then returns text; TTS generates audio from text.  
-  \- Expected: Successful calls; German accent in output.  
-\- \*\*Test Offline Handling:\*\* Given no internet, when turn starts, then error message; app doesn't crash.  
-  \- Expected: Session halts gracefully.  
-\- \*\*Test Persistence:\*\* Given session with updates, when ended, then JSON files overwritten locally with new counts.  
-  \- Expected: Reload matches saved state; predefined files load if no custom.
+### 3.1 Data‑Layer – File‑System (FS‑*)
 
-\#\# 5\. Content and Data Management  
-\#\#\# Requirements  
-\- JSON Handling: core\_blocks.json (new\_queue: words/phrases); learned\_queue.json (learned\_pool with usage/presentation counts); load via file picker or predefined.  
-\- Updates: App overwrites on save; no user-editable in-app.  
-\- Scalability: Modular for future extensions (e.g., server fetch).
+| ID | Scenario | Pre‑Conditions | Steps | Expected | **Implementation** | **Dependencies** |
+| --- | --- | --- | --- | --- | --- | --- |
+| **FS‑1** | Cold‑start copy & load | `queues/` absent | Call `LearningRepositoryImpl.loadQueues()` | Returns `Result.success`, asset JSON copied, queue sizes match assets | `data/src/test/kotlin/.../LearningRepositoryImplTest.kt` `@Test fun FS_1_ColdStart_load()` | Robolectric 4.12, Jimfs (`com.google.jimfs:jimfs`), `Json` (kotlinx), Truth |
+| **FS‑2** | Persist & reload | In‑mem queues mutated | `saveQueues()` → `loadQueues()` | Mutations persisted | same class method `FS_2_Persist_reload` | Jimfs, Coroutines‑Test |
+| **FS‑3** | Concurrent load/save | 2 coroutines R/W | `async {{load}}` + `async {{save}}` | No race / exception | same class `FS_3_Concurrent_io` | Kotlinx Coroutines‑Test |
+| **FS‑4** | Malformed JSON recovery | Corrupt `new_queue.json` | `loadQueues()` | Recovers defaults | same class `FS_4_Malformed_json` | Robolectric |
+| **FS‑5** | Missing files | Delete one/both files | `loadQueues()` | Recreates defaults | same class `FS_5_Missing_files` | Robolectric |
+| **FS‑6** | Reset counts persisted | After dequeue reset | Reload file | Counts==0 | same class `FS_6_Reset_counts` | Jimfs |
 
-\#\#\# Test Cases  
-\- \*\*Test Data Load:\*\* Given valid JSON files picked, when loaded, then new\_queue and learned\_pool populated; overwrites existing.  
-  \- Expected: Session uses loaded data; invalid files show error.  
-\- \*\*Test Save:\*\* Given count changes, when app closes, then JSON updated with accurate counts.  
-  \- Expected: File contents match in-memory state.
+### 3.2 Domain‑Layer – Business Rules (B‑*)
 
-\#\# 6\. Testing and Verification  
-\#\#\# Requirements  
-\- Critical Scenarios: File read/write success; API call success; turn completion with correct increments; recognition errors; multiple transitions in long sessions.  
-\- Logs: Text-only conversation log (coach/user) for manual verification; no audio storage.  
-\- No monetization, analytics, or external integrations.
+| ID | Scenario | Pre‑Conditions | Steps | Expected | Implementation | Dependencies |
+| --- | --- | --- | --- | --- | --- | --- |
+| **B‑1** | *StartSession resets & dequeues* | Repository returns queues | `StartSessionUseCase.startSession()` | First `new_item` counts reset; queues persisted | `domain/src/test/.../StartSessionUseCaseTest.kt` «startSession returns queues…» | Mockito‑Kotlin, Coroutines‑Test |
+| **B‑2** | *ProcessTurn mastery transition* | `usageCount==2` | `ProcessTurnUseCase.processTurn()` with user uses token | Moves item to `learnedPool`, `usageCount==3`, queues saved | `ProcessTurnUseCaseTest.kt` «processTurn moves newTarget…» | Mockito‑Kotlin |
+| **B‑3** | *Usage not incremented when absent* | Any turn | processTurn(no token) | `usageCount` unchanged | same file | — |
 
-\#\#\# Test Cases  
-\- \*\*Test File Operations:\*\* Given predefined files, when app starts, loads correctly; after changes, writes successfully.  
-  \- Expected: No corruption; verifiable via external file check.  
-\- \*\*Test API Calls:\*\* Given mock inputs, when calls made, then responses process without errors.  
-  \- Expected: Turn completes in \<10s (accounting for delay).  
-\- \*\*End-to-End Session Test:\*\* Given full queue, simulate user responses to master all; verify logs, counts, and congrats.  
-  \- Expected: All metrics match (turns \= expected, transitions at \>=3). 
+### 3.3 Domain – Prompt Snapshot (PS‑*)
 
-\#\# 7\. Core Functionality Tests  
-\#\#\# Purpose  
-This section prioritizes the foundational pipeline for iterative development and early validation. It breaks the core sequence (file read → API send with test instruction → API receive → audio play) into individual unit tests for each component. These unit tests allow independent verification and debugging. Additionally, an end-to-end integration test combines them to ensure the full flow works seamlessly. Use mocks (e.g., for APIs) in unit tests to isolate components; remove mocks in the integration test for real execution. Focus on a simple test instruction (e.g., a sample prompt like "Generate a simple greeting using the new\_target 'Hallo'") to simulate the initial coach response without full session logic.
+| ID | Scenario | Pre‑Conditions | Steps | Expected | Implementation | Dependencies |
+| --- | --- | --- | --- | --- | --- | --- |
+| **PS‑1** | Initial prompt JSON matches golden | Fixed UUID `000…` & fixture queues | `InitialPromptBuilderImpl.build()` | JSON identical to `initial_prompt.txt` | `InitialPromptBuilderTest.kt` | Snapshot file `domain/src/test/resources/initial_prompt.txt`, kotlinx‑serialization |
+| **PS‑2** | Dialogue prompt fuzzer (100 runs) | Learned‑pool randomised | build→regex validate | No vocabulary outside new_target + learned_pool | *TODO – not yet in code* | Kotest‑Property |
 
-\#\#\# Unit Tests  
-\- \*\*Unit Test 1: File Read (Data Module)\*\*    
-  Given predefined or picked JSON files (core\_blocks.json with sample new\_queue, learned\_queue.json with sample learned\_pool), when the data module's read function is called, then files are parsed into in-memory structures (e.g., lists/maps for queues and counts).    
-  \- Expected: Structures match JSON content; handle invalid JSON with error (e.g., throw exception or return empty).
+### 3.4 Speech Infrastructure (C‑*)
 
-\- \*\*Unit Test 2: API Send (Speech/LLM Module)\*\*    
-  Given in-memory data from files (e.g., new\_target from new\_queue, learned\_pool), when a test instruction prompt is constructed and sent to OpenAI ChatGPT API (mocked response), then the API call includes the correct prompt (e.g., incorporating new\_target and instructions for simple dialogue).    
-  \- Expected: Prompt format is correct; mocked send succeeds without errors; log the sent prompt for verification.
+| ID | Scenario | Pre‑Con | Steps | Expected | Impl | Deps |
+| --- | --- | --- | --- | --- | --- | --- |
+| **C‑1** | Fake LLM returns canned JSON | — | `FakeLlmService.generateDialogue()` | Returns `sample_turn_1.json` string | `speech/src/test/FakeLlmServiceTest.kt` | Ktor‑Mock |
+| **C‑2** | Fake TTS is no‑op | — | `FakeTtsService.speak()` | Returns `Result.success` | `FakeTtsServiceTest.kt` | MockK |
 
-\- \*\*Unit Test 3: API Receive (Speech/LLM Module)\*\*    
-  Given a mocked API response (e.g., JSON with generated text like "Hallo\! Das ist ein Gruß."), when the receive function processes it, then the text is extracted and prepared for TTS (e.g., stored in a string variable).    
-  \- Expected: Text matches mocked response; handle empty/invalid responses with fallback (e.g., error message).
+### 3.5 DI Switch (DI‑*)
 
-\- \*\*Unit Test 4: Audio Play (TTS Module)\*\*    
-  Given received text from API, when TTS API is called (mocked audio output), then audio is generated and played (simulate play with a callback or log). Display text on screen simultaneously.    
-  \- Expected: TTS call uses correct text and German accent config; play succeeds; screen text updates.
+| ID | Scenario | Pre‑Con | Steps | Expected | Impl | Deps |
+| --- | --- | --- | --- | --- | --- | --- |
+| **DI‑1** | Hilt toggles mock vs live | Set `BuildConfig.UAT_MODE=true/false` | Launch instrumentation test | Correct impl injected (`FakeLlmService` vs `OpenAiLlmService`) | `app/src/di-test/.../TestAppModule.kt` + `HiltSwitchInstrumentationTest.kt` | Hilt‑Testing |
 
-### File I/O Tests (FS‑1 to FS‑5)
+### 3.6 Presentation (VM‑*)
 
-| Test ID | Level         | Scenario & Steps           | Expected Assertions                                                 | Status                              |
-|---------|---------------|----------------------------|---------------------------------------------------------------------|-------------------------------------|
-| FS‑1    | Instrumented  | Cold‑start load            | Result.success; queues created; contents match assets               | ✅ Active                           |
-| FS‑2    | Instrumented  | Persist & reload           | Modified count persists after reload                                | ⚠️ Skipped (Robolectric/Windows)    |
-| FS‑3    | JVM           | Concurrent read/write      | No races or errors when load + save run simultaneously              | ⚠️ Skipped (Robolectric/Windows)    |
-| FS‑4    | JVM           | Malformed JSON             | Result.failure; fallback to bundled defaults                        | ✅ Active                           |
-| FS‑5    | JVM           | Missing file               | Result.success; assets copied; queues created                       | ✅ Active                           |
+| ID | Scenario | Pre‑Con | Steps | Expected | Impl | Deps |
+| --- | --- | --- | --- | --- | --- | --- |
+| **VM‑1** | uiState sequence for first turn | Mock use‑cases happy path | `MainViewModel.startSession()` | Idle→Loading→CoachSpeaking | `MainViewModelTest.kt` «startSession updates uiState…» | Turbine, MockK |
 
-\#\#\# End-to-End Integration Test  
-\- \*\*Integration Test: Full Core Sequence\*\*    
-  Given app launch with predefined JSON files, when a "Test Core Flow" button or command is triggered (temporary for development), then: read files into memory → construct and send test instruction to ChatGPT API (real call) → receive response text → send to TTS API (real call) → play audio and display text.    
-  \- Expected: Entire sequence completes without errors; audio plays the response (e.g., "Hallo\! Das ist ein Gruß."); log full trace (file content, sent prompt, received text, TTS success); fail if any step breaks (e.g., no internet → error message). This test runs in \<15s, verifying the pipeline before adding session/turn logic.
+### 3.7 UI (UI‑*)
+
+| ID | Scenario | Pre‑Con | Steps | Expected | Impl | Deps |
+| --- | --- | --- | --- | --- | --- | --- |
+| **UI‑1** | Espresso flow start→end | App launched in UAT | Tap *Start Session* then *End Session* | TextView updates, file saved | `SessionIntegrationTest.kt` (UI part) | Espresso‑Core, Hilt |
+
+### 3.8 Integration (INT‑*)
+
+| ID | Scenario | Pre‑Con | Steps | Expected | Impl | Deps |
+| --- | --- | --- | --- | --- | --- | --- |
+| **INT‑1** | Core happy path with fakes | Queues fixture (1 new,1 learned) | Full turn until congrats | JSON deltas verified | `EndToEndCoreSequenceIntegrationTest.kt` | Robolectric, Hilt |
+
+---
+
+## 4 Dependency Matrix *(supersedes §5 of v2)*
+
+| Test Tag | Core runtime under test | Major test libraries | Fixtures |
+| --- | --- | --- | --- |
+| FS | `LearningRepositoryImpl` | Robolectric, Jimfs, Coroutines‑Test | `data/src/test/assets/queues/*.json` |
+| B | Use‑case classes | Mockito‑Kotlin, Truth | `TestFixtures.kt` |
+| PS | `InitialPromptBuilderImpl` | kotlinx‑serialization, Kotest‑Snapshot | `initial_prompt.txt` |
+| C | Speech fake impls | Ktor‑Mock, MockK | `sample_turn_1.json` |
+| DI | Hilt bindings | Hilt‑Testing, MockK | `di-test` module |
+| VM | `MainViewModel` | Turbine, MockK | — |
+| UI | Activity XML / Robolectric | Espresso, Idling Rules | Layout TBD |
+| INT | full app | Robolectric, MockK | all above |
+
+---
+
+## 5 Execution & Gate‑keeping
+
+*Unchanged from v2 except task names updated for new tests.*  
+CI fails if **any** test here goes red or coverage in :data / :domain dips below 80 %.
+
+---
+
+## 6 Open Issues (authoritative)
+
+The active issues list lives in **FR2QA_Build.md § “Known Gaps & Risks”** and is *not duplicated here* to avoid divergence. Key headlines (as of 2025-07-23):
+
+| ID | Area | Risk / Gap | Owner | Target fix |
+|----|------|-----------|-------|-----------|
+| **OI-1** | Speech-LLM | Prompt length occasionally exceeds OpenAI 128 k-token cap on long learned pools | NLP Guild | Milestone 2 |
+| **OI-2** | UI | Jetpack Compose migration blocked by Hilt 2.53 alpha bug | UI Team | Await Hilt 2.54 |
+| **OI-3** | Test flakiness | `C-1 FakeLlmServiceTest` sporadically fails on macOS ARM runners | QA | Replace blocking I/O with coroutine fake |
+| **OI-4** | Coverage | Domain layer stuck at 78 % vs 80 % gate when `kotlinc` updates | Architecture Guild | Add PS-2 fuzz & more edge-case B-tests |
+
+*(For the canonical list, always consult **FR2QA_Build.md**.)*
+
+---
+
+## 7 Future-Proofing: Ideal Structure → Milestones
+
+1. **Snapshot-first culture** – Golden-file tests (PS-*) for every prompt variant; integrate Kotest-snapshot.
+2. **Isolate Speech layer** – Replace inline fakes with generated WireMock stubs for contract tests against live OpenAI nightly.
+3. **Move UI to Compose** – Espresso → Compose-UITest; maintain tag continuity (`UI-*`) during transition.
+4. **Parameterise queues** – Introduce fixture builder (`buildQueue(new=*, learned=*)`) to cut copy-paste.
+5. **Milestone-gated CI lanes**
+
+| Phase | Action | Owner | “Done when…” |
+|-------|--------|-------|--------------|
+| **FP1** | Rename existing tests to `<Tag><n>_…` and relocate to correct module folders | Dev Team | Gradle build green |
+| **FP2** | Add Implementation column info to FS-* table (completed) | Arch Guild | This doc merged |
+| **FP3** | Flesh out missing C-2, UI-1 IDs in code | QA | PR merged |
+| **FP4** | Implement PS-2 fuzz test & snapshot harness | QA | Coverage ≥ 80 % |
+| **FP5** | Introduce WireMock stub server for Speech live smoke tests | DevOps | Nightly job passes |
+| **FP6** | Compose UI refactor; migrate Espresso → ComposeTest | UI Team | UI-tags updated |
+
+---
+
+*Last updated 2025-07-23*
+
+

@@ -93,10 +93,14 @@ JSON property names use **snake_case** \(e.g., \"presentation_count\"\) and are 
 
 \#\#\# 4.2 Domain Layer  
 \- \*\*Use Cases\*\* (Suspend functions for async):  
-  \- \*\*StartSessionUseCase\*\*:  
-    \- Load queues via repository.  
-    \- If newQueue not empty, dequeue first as newTarget; reset counts to 0\.  
-    \- Return initial state.
+  - **StartSessionUseCase**:  
+    - Load queues via repository.  
+    - Utilizes `Queues.dequeueAndReset()` to dequeue the first item from `newQueue` and reset its `presentationCount` and `usageCount` to 0.  
+    - Return initial state.
+
+  - **InitialPromptBuilder** (Interface):  
+    - Defines the contract for building the initial prompt for the LLM.  
+    - Implemented by `NoopInitialPromptBuilder` as a placeholder until FR-2 is fully implemented.
 
   \- \*\*GenerateDialogueUseCase\*\*:  
     \- Input: Current newTarget, learnedPool.  
