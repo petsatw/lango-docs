@@ -99,9 +99,8 @@ states:
       done: CHECK_MASTERY
 
   LOOP_OR_FAIL:
-    guard: state_loop_count < max_repeat_loops
-    on_true: REPEAT_AFTER_ME              # another slow repeat
-    on_false: COMPLETE_WORD               # fail‑out safety‑net (still counts word as done)
+      guard: counters.failures >= max_repeat_loops
+      on_true: COMPLETE_WORD               # fail‑out safety‑net
 
   # ─── 4 ░░ WORD COMPLETE ░░ ────────────────────────────────────────────────────
   COMPLETE_WORD:
@@ -116,7 +115,6 @@ states:
   RESET_COUNTERS:
     entry:
       - action: reset_counters            # usage = 0, failures = 0 
-	  - action: reset_loop_state          # state_loop_count = 0
     on:
       done: INTRO_WORD                    # start flow for the next word
 
@@ -125,13 +123,13 @@ states:
 
 invariants:
   - counters.usage <= required_usages
-  - state_loop_count <= max_repeat_loops
 ```
 
 ### State Machine Notes
 
 - **Counters** are explicit top‑level variables so both human and LLM can reason about guards easily.
 - **Repeat‑After‑Me flow** is only entered after `repeat_mode_threshold` consecutive incorrect attempts (no usage increment).
+- **Loop‑cap driver** is now `counters.failures`; the separate `state_loop_count` counter has been removed.
 - Safety nets (`max_repeat_loops`) prevent a stuck session if ASR never recognises the student.
 
 ---
@@ -173,7 +171,7 @@ Feature: New word cycle with mandatory three correct usages
 
   Scenario: Repeat‑after‑me loop cap safety
     Given the student never pronounces the word correctly
-    And state_loop_count reaches max_repeat_loops
+    And counters.failures reaches max_repeat_loops
     Then the session exits remediation and marks the word learned
     Note: in the dialogue, the coach will prefer items with lower usage, so if the student does not use the word correctly, it will continue to be presented in opportunities to continue and practice usage 
 ```
@@ -190,4 +188,3 @@ Feature: New word cycle with mandatory three correct usages
 ---
 
 *(End of file)*
-

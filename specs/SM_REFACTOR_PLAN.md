@@ -1,6 +1,6 @@
 # SM_REFACTOR: State Machine Refactor (Summary)
 
-**Last Updated:** July 25, 2025  
+**Last Updated:** Aug 11, 2025  
 This is the concise, actionable six‑step plan. For full technical details and deep rationale, see **SM_REFACTOR_SPEC.md**.
 
 ---
@@ -41,6 +41,7 @@ Additions follow package conventions under `com.example.domain` and `com.example
 
 ## Development Sequence  
 Each step is a standalone PR.  After each, CI must compile and pass tests before moving on.
+There are five PRs before MVP; an optional Step 6 adds instrumentation.
 
 ### Step 1: Define & Expose Core Settings  
 **Goal:** Centralize all thresholds in a single config.  
@@ -99,16 +100,6 @@ Each step is a standalone PR.  After each, CI must compile and pass tests before
 
 ---
 
-### Step 6: Expand Test Coverage to “Sad Paths”  
-**Goal:** Verify exception paths and config‑driven guards.  
-1. Parameterized tests asserting `runner.on(badEvent)` throws `IllegalStateException`  
-   > **See SM_REFACTOR_SPEC §2.3**  
-2. Tests with alternative `SessionConfig` values (e.g. `requiredUsages=5`) to assert correct thresholds  
-   > **See SM_REFACTOR_SPEC §2.2**  
-3. Block merges on CI if any tests fail.  
-
----
-
 ## Roll‑out, CI & Metrics  
 - **CI Checklist per PR:**  
   - Domain compiles: `./gradlew :domain:compileKotlin`  
@@ -118,7 +109,16 @@ Each step is a standalone PR.  After each, CI must compile and pass tests before
 - **Metrics:** Track first‑compile and first‑green‑test rates  
   > See **SM_REFACTOR_SPEC §6** “Roll‑out & CI Metrics”
 
+
+---
+
+### Step 6 (Post-MVP): Structured Logging & Debug Ring-Buffer
+**Goal:** Add lightweight observability after MVP is stable.
+1. Introduce a `TransitionLogger` wrapper around state transitions (state, event, nextState, timings).
+2. Implement an in-memory ring-buffer (e.g., last 200 entries) enabled only in debug builds.
+3. Add a hidden UI entry (`︙ Debug`) to view the buffer when `BuildConfig.DEBUG` is true.
+4. Provide a feature toggle for verbose logging; default OFF for release builds.
+
 ---
 
 *End of DP_F_Summary.md*
-

@@ -1,7 +1,7 @@
 
 # SM_REFACTOR Detail: State Machine Refactor — Detailed Specification
 
-**Last Updated:** July 25, 2025
+**Last Updated:** Aug 11, 2025
 
 ---
 
@@ -10,7 +10,7 @@
 | Area                | Invariant / Rule                                                                                          | Source / Note                                                                                   |
 | ------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | **Mastery Counter** | `counters.usage ≤ config.requiredUsages` — the coach never asks for more uses than the configured target. | Refer `SessionConfig.requiredUsages`                                                          |
-| **Repeat-Loop Cap** | `state_loop_count ≤ config.maxRepeatLoops` — ensures remediation loops terminate.                         | Refer `SessionConfig.maxRepeatLoops`                                                          |
+| **Repeat-Loop Cap** | `counters.failures ≤ config.maxRepeatLoops` — ensures remediation loops terminate. |
 | **Failure → Remed.**| Enter `REPEAT_AFTER_ME` only if `counters.failures ≥ config.repeatModeThreshold`.                         | Refer `SessionConfig.repeatModeThreshold`                                                    |
 
 ### `newTarget` Semantics
@@ -103,6 +103,8 @@ List of core `entry:` actions (copied from conversation “Runtime DSL Interpret
 
 ### §2.3 Guard Logic & Unhandled Events
 
+- **Loop cap**: `counters.failures` is compared to `config.maxRepeatLoops` inside `LOOP_OR_FAIL`.
+
 - **Unhandled-event fallback**:  
   - Runner must `throw IllegalStateException("Unhandled event $event in $state")`.
 
@@ -110,6 +112,8 @@ List of core `entry:` actions (copied from conversation “Runtime DSL Interpret
   - No magic numbers; compare against `config` values only.
 
 ### §2.4 Context Mutation & Logging
+
+> **⚠ Post-MVP Scope** – Structured logging is required only after the first production build. During MVP, emit a simple `Timber.d()` per transition.
 
 - **Context Map (`ctx`)**:
   ```kotlin
