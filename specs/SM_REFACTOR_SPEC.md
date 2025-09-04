@@ -25,14 +25,8 @@
   - `learned = true` when `usageCount ≥ config.requiredUsages`.
 
 - **Queue JSON Schema**:
-  ```jsonc
-  {
-    "schemaVersion": 1,
-    "new_queue": [{ "id": "...", "token": "...", "presentationCount": 0, "usageCount": 0, "learned": false }, ...],
-    "learned_pool": [ ... ]
-  }
-  ```
-
+*Implemented by* `Queues` in code (domain/Queues.kt). Asset files live under `app/src/main/assets/queues/*.json` and are loaded/persisted by `LearningRepositoryImpl`.
+ 
 ---
 
 ## §2. Runtime DSL Interpreter
@@ -88,9 +82,11 @@ List of core `entry:` actions (copied from conversation “Runtime DSL Interpret
   - Else if neg: `ctx.failures++`.
 
 - **`add_word_to_learned_pool`**:  
-  - Mark `ctx.currentItem.learned = true`.  
-  - Invoke repository persistence.  
-  - Reset `ctx` counters.
+  - Mark `ctx.currentItem.isLearned = true`.  
+  - Move item from `ctx.queues.newQueue` to `ctx.queues.learnedPool`.  
+  - **Persist** via `LearningRepository.saveQueues(ctx.queues)` (DI-injected into the action).  
+  - Do **not** reset counters here; counters are reset in `RESET_COUNTERS` state per YAML.
+
 
 - **`reset_counters`**, **`reset_failures_counter`**:  
   - Zero out `ctx.usageCount` or `ctx.failures`.
@@ -122,7 +118,7 @@ List of core `entry:` actions (copied from conversation “Runtime DSL Interpret
     var presentationCount: Int,
     var failures: Int,
     var currentItem: LearningItem,
-    var headerJson: HeaderJson
+    var queues: Queues
   )
   ```
 
@@ -161,14 +157,14 @@ List of core `entry:` actions (copied from conversation “Runtime DSL Interpret
 @HiltViewModel
 class MainViewModel @Inject constructor(
   private val runner: StateMachineRunner,
-  private val repository: LearnedPoolRepository
+  private val learningRepository: LearningRepository
 ) : ViewModel() {
   private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
   val uiState: StateFlow<UiState> = _uiState
 
   init {
-    val header = repository.loadQueues()
-    runner.initialize(header)
+    val queues = learningRepository.loadQueues().getOrThrow()
+    runner.initialize(queues)
   }
 
   fun onEvent(event: String) {
@@ -213,19 +209,18 @@ class MainViewModel @Inject constructor(
 ---
 
 ## §5. Persistence Integration
+**Queues** holds `newQueue` and `learnedPool` (see `domain/Queues.kt`).
+**LearningRepository** interface (already in `domain`):
 
-- **HeaderJson** holds `new_queue` and `learned_pool`.
-- **LearnedPoolRepository** interface:
-  ```kotlin
-  interface LearnedPoolRepository {
-    fun saveQueues(headerJson: HeaderJson)
-    fun loadQueues(): HeaderJson
-  }
-  ```
-- **Runner Hooks**:
-  - On `add_word_to_learned_pool` → call `saveQueues`.
-  - On `initialize(header)` → load into runner context.
-
+```kotlin
+interface LearningRepository {
+  suspend fun loadQueues(): Result<Queues>
+  suspend fun saveQueues(queues: Queues): Result<Unit>
+}
+```
+**Runner Hooks**:
+  - On `add_word_to_learned_pool` → after moving the item, call `learningRepository.saveQueues(ctx.queues)` 
+  - On initialization (e.g., `MainViewModel.start()`), load via `val queues = learningRepository.loadQueues().getOrThrow()` and    `runner.initialize(queues)`
 ---
 
 ## §6. Roll-out & CI Metrics

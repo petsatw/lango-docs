@@ -2,7 +2,7 @@ Act as a world class mobile application architect
 
 # CONTEXT
 
-I am the lead developer tasked with delivering NEXT_STEP and after reviewing MY_CB, TDD_F, NP_F and ARCH_TL these are the questions that I need clarified in order to begin NEXT_STP
+I am the lead developer tasked with delivering NEXT_STEP and after reviewing MY_CB, TDD_F, DP_F and ARCH_TL these are the questions that I need clarified in order to begin NEXT_STEP
 
 [QUESTIONS FROM FEATURE_DEVELOPMENT_TASK_PREP_ASSESS_IMPACT.md]
 
@@ -35,6 +35,10 @@ Musk: “One of the biggest mistakes I’ve made is automating something that sh
 
 # INSTRUCTIONS
 
-Carefully read in MY_CB, TDD_F, NP_F, ARCH_TL and NEXT_STEP. Review these questions and answer them in order to guide the team on NEXT_STEP. Provide them a high level of context detail to understand the reasoning behind your design decisions and how that design decision is most relevant to MY_CB. You need to understand, first and foremost, that the development team will be laser focused on implementing NEXT_STEP. They have no time to comb back through all of this documentation to find all the details they need. This set of instructions and guidance, coupled with NEXT_STEP will be what they use to perform 99% of their work on this task. So it needs to be as detailed as necessary and very, very clear. 
+1) Carefully read in MY_CB, TDD_F, DP_F, ARCH_TL and NEXT_STEP. 
 
-Work off the assumption that they have almost zero awareness of the technical details in  any other documents. So answer these questions and guide them well. 
+2) Be ruthless and adhere viscously to first principles so that we don't get too precious with our implementation of NEXT_STEP. Identify only the critical questions that are **In‑scope now** and then completely discard anything that can be **Explicitly deferred** based on the exact text in NEXT_STEP so the team has a crystal clear list of priorities to work from. 
+
+3) Review the remaining essential questions and answer them in order to guide the team on NEXT_STEP. Provide them a high resolution of context detail so they can understand the reasoning behind your design decisions and how that design decision is most relevant to MY_CB. You need to understand, first and foremost, that the development team will be laser focused on implementing NEXT_STEP. They have no time to comb back through all of this documentation to find all the details they need. This set of instructions and guidance, coupled with NEXT_STEP will be what they use to perform 99% of their work on this task. So it needs to be as detailed as necessary and very, very clear. 
+
+Assume first and foremost that are working directly with MY_CB code and have almost zero awareness of the technical details in any other documents other than these instructions. So provide them with instructions and detailed code snippets that are clear, actionable and are totally understandable within the context of the existing codebase (MY_CB). Leave no room for interpretation as to what changes need to be implemented. Avoid lazy instructions that would lead to unintentional overwrites or duplication. 

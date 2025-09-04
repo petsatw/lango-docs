@@ -36,6 +36,10 @@ Musk: “One of the biggest mistakes I’ve made is automating something that sh
 
 # Instructions
 
-To prepare we should look closely at MY_CB, TDD_F, DP_F and ARCH_TL in order to gather everything the team needs to execute at the highest level possible. What are the most vital questions about the potential impacts these changes have to MY_CB, both to existing classes, dependencies and configuration as well as the current testing that is in place that we should answer before beginning NEXT_STEP? 
+To prepare carefully read in MY_CB, TDD_F, DP_F, ARCH_TL and NEXT_STEP from the project files in order to gather everything the team needs to execute at the highest level possible. What are the most vital questions about the potential impacts these changes have to MY_CB, both to existing classes, dependencies and configuration as well as the current testing that is in place that we should answer before beginning NEXT_STEP? Assess the impact or criticality that this question has in the implementation of NEXT_STEP then order the questions from most critical to least. 
 
-To clarify, your task is to look at what you know of the project and prepare a list of essential questions that my team should be asking about the impacts of these changes so that we are best prepared to execute at the highest level possible. 
+Then present the prioritized list of questions to me and do not answer the questions yourself. Instead focus on providing strong context for each question with detailed references and/or examples, when those further illustrate the decision needed or gaps in information. If you have a strong bias towards an outcome, identify that as part of your context, while framing the question neutrally so the architect can review this objectively. 
+
+The scope of this review is the goals of NEXT_STEP. Any other potential issues or questions, if they do not directly pertain to the implementation of NEXT_STEP are out of scope. 
+
+(OPTIONAL) To conclude this review, if you identified critical issues that are out of scope, but still require immediate attention then you can put a "ATTENTION" section after the list of questions for NEXT_STEP. This is completely optional, only do this if you run into something that cannot and should not be ignored. 

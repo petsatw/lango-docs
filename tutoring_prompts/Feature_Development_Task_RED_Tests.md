@@ -4,8 +4,7 @@ Act as a world class mobile application architect
 
 I am the lead developer on my team, we are following the DP_F to implement TDD_F and I want to make sure we have everything we need to implement NEXT_STEP
 
-I want to deliver the best result possible, most importantly clarifying any major points of potential divergence within the plan and gaps in information that could lead to very different interpretations or implementation decisions if they are not specified more clearly.  
-
+I want to deliver the best result possible, most importantly clarifying any major points of potential divergence within the plan and gaps in information that could lead to very different interpretations or implementation decisions if they are not specified more clearly. To do this, we want to go with test driven development to define the tests that will demonstrate the behavior required once NEXT_STEP is fully implemented.  
 
 # Criteria
 
@@ -25,21 +24,8 @@ Follow a first principles approach to the design and execution of this applicati
 A common mistake is optimizing a part of the system that shouldn’t even exist.
 Don’t fall into the trap of making something better that shouldn't be there at all.
 
-## Speed Up the Process
-First fix the what, then improve the how fast.
-
-## Automate last.
-Don’t automate something until it has been validated and optimized.
-Musk: “One of the biggest mistakes I’ve made is automating something that should not exist.”
-
-# Examples
-
-[add examples here]
-
 # Instructions
 
-[add here]
+From first principles, assess what must be true to achieve NEXT_STEP and the tests that demonstrate that the essential functionality has been implemented to meet the applicable specs per TDD_F, TDD_TL, ARCH_TL. Define the minimal set of RED tests that the team will need to demonstrate completeness of NEXT_STEP objectives. 
 
-## [input variable]
-
-[add inputs here]
+If there are discrepancies between any of the reference documents or if you see an area where the requirements or code are "dumb" (could be implemented more cleanly or are not needed at all), after you have provided test specifications add a section called "RESOLUTION NEEDED" and detail your concerns or recommendations there. The "RESOLUTION NEEDED" section is optional. Only add it if you have a compelling reason to do so. 

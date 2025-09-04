@@ -20,8 +20,8 @@ This summary is the development plan for the State Machine Refactor. It structur
 - FSM orchestration via YAML spec + interpreter.  
 - Configurable thresholds (`requiredUsages`, loop caps, failure thresholds).  
 - Queue & `LearningItem` lifecycle management; LLM prompt helpers.  
-- Persistence of mastered items via `LearnedPoolRepository`.  
-  > See **SM_REFACTOR_SPEC §1** “Must‑Be‑True Invariants & Core Domain Model”  
+- Persistence of mastered items via `LearningRepository` + `Queues`.  
+  > See **SM_REFACTOR_SPEC §1 & §5** (updated)  
 
 ### Out of Scope  
 - Legacy orchestrator/use‑case classes (`StartSessionUseCase`, `GenerateDialogueUseCase`, `ProcessTurnUseCase`, `EndSessionUseCase`, `CoachOrchestrator`) and their tests.  
@@ -80,23 +80,28 @@ There are five PRs before MVP; an optional Step 6 adds instrumentation.
 ---
 
 ### Step 4: Implement Persistence for Mastered Items  
-**Goal:** Persist only at mastery, per crash‑resume rules.  
-1. Reuse `LearnedPoolRepository` from `RepositoryModule`  
-2. In runner’s `add_word_to_learned_pool` action, call `repository.saveQueues(headerJson)`  
-3. On app init, load via `repository.loadQueues()` and `runner.initialize(header)`  
+**Goal:** Persist only at mastery, per crash‑resume rules. 
+Inject LearningRepository into DefaultActionRegistry and pass it into AddWordToLearnedPoolAction; call repository.saveQueues(ctx.queues) at the end of that action.
+ 
+1. **Use** `LearningRepository` from `RepositoryModule` (already in code).  
+2. **Inject** `LearningRepository` into the action registry and pass it to `AddWordToLearnedPoolAction`.  
+3. In `AddWordToLearnedPoolAction.invoke(ctx)`, after moving the item, call `learningRepository.saveQueues(ctx.queues).getOrThrow()`  
+4. On app init (`MainViewModel.start()`), keep loading via `learningRepository.loadQueues()` and `runner.initialize(queues)`
 
 > **See SM_REFACTOR_SPEC §1** for `schemaVersion` and JSON shape  
 > **See SM_REFACTOR_SPEC §5** “Persistence Integration”
+
+Test Plan: assert saveQueues called once with updated Queues
 
 ---
 
 ### Step 5: Delete Old Orchestrator & Tests  
 **Goal:** Remove legacy code in one atomic PR after Step 4 green.  
-1. Delete `StartSessionUseCase`, `GenerateDialogueUseCase`, `ProcessTurnUseCase`, `EndSessionUseCase`, `CoachOrchestrator` under `domain/src/main/kotlin/...`  
-2. Delete corresponding tests in `domain/src/test/...` and `app/src/test/...`  
+1. Delete any remaining **legacy** orchestrator/use‑case classes *if present* and tests. (In current codebase, runner + VM stubs are already in place; prune only dead files/imports.)  
+2. Remove stray imports/usages (e.g., `CoachOrchestrator` references in test DI).  
 3. Confirm CI still compiles and Step 2’s golden‑path test remains green.  
-
-> Ensures no hidden dependencies remain.
+ 
+ > Ensures no hidden dependencies remain.
 
 ---
 
